@@ -4,8 +4,9 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { db } from '@/lib/firebase'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
-import type { User, Quotation, QuotationItem, Customer, Equipment } from '@/types'
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, getDocs } from 'firebase/firestore'
+import type { User, Quotation, QuotationItem, Customer, Equipment, BusinessSettings } from '@/types'
+import { exportQuotationPDF } from '@/lib/pdf/quotation'
 import { QUOTATION_STATUS_LABELS, QUOTATION_STATUS_COLORS } from '@/lib/constants'
 import { formatCurrency, formatDate, calculateDays, generateDocNumber, calculateSubtotal, calculateDiscount, calculateTax } from '@/lib/utils'
 import {
@@ -23,7 +24,7 @@ import {
   Calendar,
   Package,
   MoreVertical,
-  ChevronDown,
+  Download,
 } from 'lucide-react'
 
 type QuotationStatus = Quotation['status']
@@ -88,6 +89,7 @@ export default function QuotationsPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [equipment, setEquipment] = useState<Equipment[]>([])
+  const [settings, setSettings] = useState<BusinessSettings | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<QuotationStatus | 'all'>('all')
@@ -111,6 +113,13 @@ export default function QuotationsPage() {
       setLoading(false)
     })
     return () => unsub()
+  }, [])
+
+  // Load business settings
+  useEffect(() => {
+    getDoc(doc(db, 'business_settings', 'config')).then((snap) => {
+      if (snap.exists()) setSettings(snap.data() as BusinessSettings)
+    })
   }, [])
 
   // Realtime listeners
@@ -593,6 +602,20 @@ export default function QuotationsPage() {
 
                     {activeDropdown === quotation.id && (
                       <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-30 w-48">
+                        {/* Download PDF - always available */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            exportQuotationPDF(quotation, settings)
+                            setActiveDropdown(null)
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        >
+                          <Download className="w-4 h-4" />
+                          Download PDF
+                        </button>
+                        <div className="border-t border-slate-100 my-1" />
+
                         {quotation.status === 'draft' && (
                           <>
                             <button

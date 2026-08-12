@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CalendarCheck, Receipt, UserCircle } from 'lucide-react'
+import { LayoutDashboard, CalendarCheck, Receipt, Camera, UserCircle } from 'lucide-react'
 
 const navItems = [
   { href: '/portal', label: 'Home', icon: LayoutDashboard },
+  { href: '/portal/catalog', label: 'Equipment', icon: Camera },
   { href: '/portal/bookings', label: 'Bookings', icon: CalendarCheck },
   { href: '/portal/invoices', label: 'Invoices', icon: Receipt },
   { href: '/portal/profile', label: 'Profile', icon: UserCircle },
@@ -18,7 +19,7 @@ export default function CustomerMobileNav() {
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-40">
       <div className="flex items-center justify-around py-2">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = item.href === '/portal' ? pathname === '/portal' : pathname.startsWith(item.href)
           return (
             <Link
               key={item.href}

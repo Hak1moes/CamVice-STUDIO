@@ -349,7 +349,7 @@ export default function RentalDetailPage() {
         amount: paymentForm.amount,
         payment_method: paymentForm.payment_method as Payment['payment_method'],
         payment_type: 'rental',
-        reference_number: paymentForm.reference_number || undefined,
+        reference_number: paymentForm.reference_number || '',
         notes: paymentForm.notes,
         created_by: user.id,
         created_at: now,

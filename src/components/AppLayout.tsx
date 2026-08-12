@@ -6,6 +6,7 @@ import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { Loader2 } from 'lucide-react'
+import Image from 'next/image'
 import Sidebar from './Sidebar'
 import MobileNav from './MobileNav'
 import NotificationBell from './NotificationBell'
@@ -78,12 +79,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col md:ml-64">
         {/* Top bar */}
         <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 md:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-medium text-slate-500">Welcome,</h2>
-            <span className="text-sm font-semibold text-slate-800">{user.name}</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 font-medium capitalize">{user.role}</span>
+          <div className="flex items-center gap-3">
+            <Image src="/logo.jpeg" alt="CamVice" width={32} height={32} className="rounded-lg object-cover" />
+            <span className="font-bold text-slate-800 text-sm">CamVice Studio</span>
           </div>
-          <NotificationBell userId={user.id} />
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2">
+              <h2 className="text-sm font-medium text-slate-500">Welcome,</h2>
+              <span className="text-sm font-semibold text-slate-800">{user.name}</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-700 font-medium capitalize">{user.role}</span>
+            </div>
+            <NotificationBell userId={user.id} />
+          </div>
         </header>
         {/* Content */}
         <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">

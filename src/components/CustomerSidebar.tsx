@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CalendarCheck, Receipt, UserCircle, LogOut } from 'lucide-react'
+import { LayoutDashboard, CalendarCheck, Receipt, UserCircle, LogOut, Camera } from 'lucide-react'
 import type { User } from '@/types'
 
 const navItems = [
   { href: '/portal', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/portal/catalog', label: 'Equipment', icon: Camera },
   { href: '/portal/bookings', label: 'My Bookings', icon: CalendarCheck },
   { href: '/portal/invoices', label: 'Invoices', icon: Receipt },
   { href: '/portal/profile', label: 'Profile', icon: UserCircle },
@@ -35,7 +36,7 @@ export default function CustomerSidebar({ user, onLogout }: CustomerSidebarProps
 
       <nav className="flex-1 p-3 space-y-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = item.href === '/portal' ? pathname === '/portal' : pathname.startsWith(item.href)
           return (
             <Link
               key={item.href}

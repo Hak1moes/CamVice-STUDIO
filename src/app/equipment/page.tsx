@@ -455,10 +455,10 @@ export default function EquipmentPage() {
                 <label className="block text-sm font-medium text-slate-700 mb-1">Image</label>
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full h-40 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-neutral-400 hover:bg-neutral-50/30 transition-colors overflow-hidden"
+                  className="w-full h-48 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-neutral-400 hover:bg-neutral-50/30 transition-colors overflow-hidden bg-slate-50"
                 >
                   {imagePreview ? (
-                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-contain" />
                   ) : (
                     <>
                       <Upload className="w-8 h-8 text-slate-300 mb-2" />

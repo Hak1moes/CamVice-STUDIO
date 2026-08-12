@@ -47,11 +47,11 @@ const ROLE_ICONS: Record<UserRole, React.ReactNode> = {
 }
 
 const EMPTY_SETTINGS: BusinessSettings = {
-  business_name: '',
-  business_address: '',
+  business_name: 'Camvice Studio',
+  business_address: 'F-20-08, F, Pangsapuri Idaman Abadi Fasa 2, 43500, Semenyih, Selangor',
   business_phone: '',
   business_email: '',
-  business_registration: '',
+  business_registration: '202503226884 (JM1030069-X)',
   logo_url: '',
   bank_name: '',
   bank_account: '',

@@ -5,11 +5,13 @@ import { useRouter } from 'next/navigation'
 import { db } from '@/lib/firebase'
 import { auth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import { collection, onSnapshot, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore'
-import { Search, Receipt, Loader2, X, CreditCard, Eye, Send, Ban } from 'lucide-react'
-import type { User, Invoice, Payment } from '@/types'
+import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore'
+import { Search, Receipt, Loader2, X, CreditCard, Eye, Send, Ban, Download, ChevronDown, ChevronUp } from 'lucide-react'
+import type { User, Invoice, Payment, Rental, BusinessSettings } from '@/types'
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, PAYMENT_METHODS } from '@/lib/constants'
-import { formatCurrency, formatDate, generateDocNumber } from '@/lib/utils'
+import { formatCurrency, formatDate, formatDateTime, generateDocNumber } from '@/lib/utils'
+import { exportInvoicePDF } from '@/lib/pdf/invoice'
+import { exportReceiptPDF } from '@/lib/pdf/receipt'
 
 type StatusFilter = 'all' | Invoice['status']
 
@@ -41,6 +43,16 @@ export default function InvoicesPage() {
 
   // Action loading states
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
+  const [settings, setSettings] = useState<BusinessSettings | null>(null)
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null)
+  const [payments, setPayments] = useState<Record<string, Payment[]>>({})
+  const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    getDoc(doc(db, 'business_settings', 'config')).then((snap) => {
+      if (snap.exists()) setSettings(snap.data() as BusinessSettings)
+    })
+  }, [])
 
   useEffect(() => {
     let unsubInvoices: (() => void) | null = null
@@ -58,9 +70,26 @@ export default function InvoicesPage() {
         setLoading(false)
       })
     })
+
+    const unsubPayments = onSnapshot(collection(db, 'payments'), (snapshot) => {
+      const grouped: Record<string, Payment[]> = {}
+      snapshot.docs.forEach(d => {
+        const p = { id: d.id, ...d.data() } as Payment
+        if (p.invoice_id) {
+          if (!grouped[p.invoice_id]) grouped[p.invoice_id] = []
+          grouped[p.invoice_id].push(p)
+        }
+      })
+      Object.values(grouped).forEach(arr =>
+        arr.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      )
+      setPayments(grouped)
+    })
+
     return () => {
       unsubAuth()
       if (unsubInvoices) unsubInvoices()
+      unsubPayments()
     }
   }, [])
 
@@ -209,6 +238,31 @@ export default function InvoicesPage() {
     }
   }
 
+  const handleDownloadPDF = async (invoice: Invoice) => {
+    setPdfLoadingId(invoice.id)
+    try {
+      let rental: Rental | null = null
+      if (invoice.rental_id) {
+        const rentalSnap = await getDoc(doc(db, 'rentals', invoice.rental_id))
+        if (rentalSnap.exists()) rental = { id: rentalSnap.id, ...rentalSnap.data() } as Rental
+      }
+      exportInvoicePDF(invoice, rental, settings)
+    } catch (err) {
+      console.error('Error downloading invoice PDF:', err)
+    } finally {
+      setPdfLoadingId(null)
+    }
+  }
+
+  const handleDownloadReceipt = async (payment: Payment) => {
+    let rental: Rental | null = null
+    if (payment.rental_id) {
+      const rentalSnap = await getDoc(doc(db, 'rentals', payment.rental_id))
+      if (rentalSnap.exists()) rental = { id: rentalSnap.id, ...rentalSnap.data() } as Rental
+    }
+    exportReceiptPDF(payment, rental, settings)
+  }
+
   const getItemsSummary = (items: Invoice['items']) => {
     if (items.length === 0) return 'No items'
     const first = items.slice(0, 2).map(i => i.equipment_name).join(', ')
@@ -349,6 +403,20 @@ export default function InvoicesPage() {
 
                   {/* Actions row */}
                   <div className="flex items-center gap-2 pt-1 border-t border-slate-50">
+                    {/* Download PDF */}
+                    <button
+                      onClick={() => handleDownloadPDF(invoice)}
+                      disabled={pdfLoadingId === invoice.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-neutral-900 hover:bg-neutral-50 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {pdfLoadingId === invoice.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                      PDF
+                    </button>
+
                     {/* View Rental */}
                     <button
                       onClick={() => router.push(`/rentals/${invoice.rental_id}`)}
@@ -400,7 +468,41 @@ export default function InvoicesPage() {
                         Cancel
                       </button>
                     )}
+
+                    {/* Toggle payment history */}
+                    {(payments[invoice.id]?.length ?? 0) > 0 && (
+                      <button
+                        onClick={() => setExpandedPayments(prev => ({ ...prev, [invoice.id]: !prev[invoice.id] }))}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-50 rounded-lg transition-colors ml-auto"
+                      >
+                        {expandedPayments[invoice.id] ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        {payments[invoice.id].length} Receipt{payments[invoice.id].length !== 1 ? 's' : ''}
+                      </button>
+                    )}
                   </div>
+
+                  {/* Payment history */}
+                  {expandedPayments[invoice.id] && (payments[invoice.id]?.length ?? 0) > 0 && (
+                    <div className="border-t border-slate-100 pt-3 space-y-2">
+                      {payments[invoice.id].map(p => (
+                        <div key={p.id} className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-700">{p.receipt_number}</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">{formatDateTime(p.created_at)} · {p.payment_method.replace('_', ' ')}</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-bold text-emerald-600">{formatCurrency(p.amount)}</span>
+                            <button
+                              onClick={() => handleDownloadReceipt(p)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
+                            >
+                              <Download className="w-3 h-3" /> Receipt
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )
