@@ -280,7 +280,7 @@ export function exportReceiptPDF(payment: Payment, rental: Rental | null, settin
     pdf.text(pdfFormatCurrency(payment.amount), vX, y, { align: 'right' })
     y += 5
 
-    const balance = (rental.grand_total || rental.total_amount + rental.deposit_amount) - (rental.amount_paid || 0)
+    const balance = (rental.total_amount + rental.deposit_amount) - (rental.amount_paid || 0)
     if (balance > 0) {
       pdf.setFontSize(9)
       tRow('Balance Due', pdfFormatCurrency(balance), true, [220, 38, 38])
