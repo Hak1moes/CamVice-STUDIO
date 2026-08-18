@@ -595,16 +595,15 @@ export default function EquipmentPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Deposit (RM) *</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Deposit (RM)</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     placeholder="0.00"
-                    value={form.deposit_amount || ''}
-                    onChange={(e) => setForm({ ...form, deposit_amount: parseFloat(e.target.value) || 0 })}
+                    value={form.deposit_amount}
+                    onChange={(e) => setForm({ ...form, deposit_amount: e.target.value === '' ? 0 : (parseFloat(e.target.value) || 0) })}
                     className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 text-slate-800"
-                    required
                   />
                 </div>
               </div>

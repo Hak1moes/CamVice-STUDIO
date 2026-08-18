@@ -92,6 +92,7 @@ export default function RentalsPage() {
   const [formDiscountType, setFormDiscountType] = useState<'percentage' | 'fixed' | ''>('')
   const [formDiscountValue, setFormDiscountValue] = useState<number>(0)
   const [formNotes, setFormNotes] = useState('')
+  const [formDeposit, setFormDeposit] = useState(0)
 
   // ==================== Auth + Real-time Listeners ====================
 
@@ -263,12 +264,15 @@ export default function RentalsPage() {
 
   const formTotal = useMemo(() => Math.max(0, formSubtotal - formDiscountAmount), [formSubtotal, formDiscountAmount])
 
-  const formDepositAmount = useMemo(() => {
-    return formItems.reduce((sum, item) => {
+  // Auto-fill deposit from equipment when items change
+  useEffect(() => {
+    if (!showCreateModal) return
+    const auto = formItems.reduce((sum, item) => {
       const eq = equipment.find((e) => e.id === item.equipment_id)
       return sum + (eq?.deposit_amount || 0) * item.quantity
     }, 0)
-  }, [formItems, equipment])
+    setFormDeposit(auto)
+  }, [formItems, equipment, showCreateModal])
 
   // ==================== Open / Close Modal ====================
 
@@ -280,6 +284,7 @@ export default function RentalsPage() {
     setFormDiscountType('')
     setFormDiscountValue(0)
     setFormNotes('')
+    setFormDeposit(0)
     setShowCreateModal(true)
   }
 
@@ -338,7 +343,7 @@ export default function RentalsPage() {
         tax_rate: 0,
         tax_amount: 0,
         total_amount: formTotal,
-        deposit_amount: formDepositAmount,
+        deposit_amount: formDeposit,
         deposit_status: 'pending',
         status: 'pending_confirmation',
         payment_status: 'unpaid',
@@ -728,8 +733,15 @@ export default function RentalsPage() {
                   <span className="text-lg font-bold text-slate-800">{formatCurrency(formTotal)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">Deposit Required</span>
-                  <span className="font-medium text-slate-700">{formatCurrency(formDepositAmount)}</span>
+                  <span className="text-slate-500">Deposit</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    value={formDeposit}
+                    onChange={(e) => setFormDeposit(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="w-32 px-2 py-1 border border-slate-200 rounded-lg text-sm text-right font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                  />
                 </div>
               </div>
 

@@ -4,11 +4,12 @@ import { useState, useEffect, useMemo } from 'react'
 import { db, auth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore'
-import { CalendarCheck, Search, Loader2, Package, Download } from 'lucide-react'
+import { CalendarCheck, Search, Loader2, Package, Download, Eye } from 'lucide-react'
 import type { User, Rental, BusinessSettings } from '@/types'
 import { RENTAL_STATUS_LABELS, RENTAL_STATUS_COLORS } from '@/lib/constants'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { exportAgreementPDF } from '@/lib/pdf/agreement'
+import PDFViewerModal from '@/components/PDFViewerModal'
 
 export default function PortalBookingsPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -17,6 +18,7 @@ export default function PortalBookingsPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [viewingPDF, setViewingPDF] = useState<{ dataUrl: string; title: string; fileName: string } | null>(null)
 
   useEffect(() => {
     let unsubs: (() => void)[] = []
@@ -120,6 +122,15 @@ export default function PortalBookingsPage() {
                     <p className="text-lg font-bold text-slate-800">{formatCurrency(r.total_amount)}</p>
                     <p className="text-xs text-slate-500">Deposit: {formatCurrency(r.deposit_amount)}</p>
                   </div>
+                  <button
+                    onClick={() => {
+                      const dataUrl = exportAgreementPDF(r, settings, 'datauristring') as string
+                      setViewingPDF({ dataUrl, title: `Agreement ${r.rental_number}`, fileName: `${r.rental_number}-agreement.pdf` })
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors shrink-0"
+                  >
+                    <Eye className="w-3 h-3" /> View
+                  </button>
                   <button onClick={() => exportAgreementPDF(r, settings)} className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 flex items-center gap-1 shrink-0">
                     <Download className="w-3 h-3" /> Agreement
                   </button>
@@ -128,6 +139,13 @@ export default function PortalBookingsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {viewingPDF && (
+        <PDFViewerModal
+          {...viewingPDF}
+          onClose={() => setViewingPDF(null)}
+        />
       )}
     </div>
   )

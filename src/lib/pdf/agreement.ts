@@ -4,7 +4,7 @@ import { drawHeader, drawDocumentTitle, drawInfoRow, drawSectionTitle, drawTable
 import { formatDate } from '@/lib/utils'
 import { DEFAULT_TERMS } from '@/lib/constants'
 
-export function exportAgreementPDF(rental: Rental, settings: BusinessSettings | null) {
+export function exportAgreementPDF(rental: Rental, settings: BusinessSettings | null, output: 'download' | 'datauristring' = 'download'): string | void {
   const pdf = new jsPDF('p', 'mm', 'a4')
   const margin = 20
   const pageWidth = pdf.internal.pageSize.getWidth()
@@ -147,5 +147,6 @@ export function exportAgreementPDF(rental: Rental, settings: BusinessSettings | 
   pdf.text(`Date: _______________`, lesseeX, sigY + 13)
 
   drawFooter(pdf, settings)
+  if (output === 'datauristring') return pdf.output('datauristring')
   pdf.save(`${rental.rental_number}_Agreement.pdf`)
 }

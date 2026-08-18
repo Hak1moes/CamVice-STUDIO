@@ -4,7 +4,7 @@ import { drawHeader, drawDocumentTitle, drawInfoRow, drawSectionTitle, drawTable
 import { formatDate } from '@/lib/utils'
 import { QUOTATION_STATUS_LABELS } from '@/lib/constants'
 
-export function exportQuotationPDF(quotation: Quotation, settings: BusinessSettings | null) {
+export function exportQuotationPDF(quotation: Quotation, settings: BusinessSettings | null, output: 'download' | 'datauristring' = 'download'): string | void {
   const pdf = new jsPDF('p', 'mm', 'a4')
   const margin = 20
 
@@ -139,5 +139,6 @@ export function exportQuotationPDF(quotation: Quotation, settings: BusinessSetti
   // Footer
   drawFooter(pdf, settings)
 
+  if (output === 'datauristring') return pdf.output('datauristring')
   pdf.save(`${quotation.quotation_number}_Quotation.pdf`)
 }

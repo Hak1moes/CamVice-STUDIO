@@ -25,7 +25,7 @@ const PAYMENT_TYPE_LABELS: Record<string, string> = {
   refund: 'Refund',
 }
 
-export function exportReceiptPDF(payment: Payment, rental: Rental | null, settings: BusinessSettings | null) {
+export function exportReceiptPDF(payment: Payment, rental: Rental | null, settings: BusinessSettings | null, output: 'download' | 'datauristring' = 'download'): string | void {
   const pdf = new jsPDF('p', 'mm', 'a4')
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
@@ -227,26 +227,29 @@ export function exportReceiptPDF(payment: Payment, rental: Rental | null, settin
     pdf.setFontSize(8.5)
 
     rental.items.forEach((item, idx) => {
-      y = checkPageBreak(pdf, y, margin, rowH)
+      const descLines = pdf.splitTextToSize(item.equipment_name, colWidths[0] - 6)
+      const lineH = 4.5
+      const dynamicRowH = Math.max(rowH, descLines.length * lineH + 3)
+
+      y = checkPageBreak(pdf, y, margin, dynamicRowH)
       if (idx % 2 === 1) {
         pdf.setFillColor(248, 248, 248)
-        pdf.rect(margin, y - 4.5, tableW, rowH, 'F')
+        pdf.rect(margin, y - 4.5, tableW, dynamicRowH, 'F')
       }
       pdf.setDrawColor(230, 230, 230)
-      pdf.line(margin, y + rowH - 5, margin + tableW, y + rowH - 5)
+      pdf.line(margin, y + dynamicRowH - 5, margin + tableW, y + dynamicRowH - 5)
 
       xPos = margin + 3
-      const cells = [item.equipment_name, item.quantity.toString(), item.subtotal.toFixed(2)]
-      cells.forEach((cell, i) => {
-        if (i === 0) {
-          const w = pdf.splitTextToSize(cell, colWidths[i] - 6)
-          pdf.text(w[0] || '', xPos, y)
-        } else {
-          pdf.text(cell, xPos + colWidths[i] - 3, y, { align: 'right' })
-        }
-        xPos += colWidths[i]
+      pdf.text(descLines, xPos, y)
+      xPos += colWidths[0]
+
+      const numericCells = [item.quantity.toString(), item.subtotal.toFixed(2)]
+      numericCells.forEach((cell, i) => {
+        pdf.text(cell, xPos + colWidths[i + 1] - 3, y, { align: 'right' })
+        xPos += colWidths[i + 1]
       })
-      y += rowH
+
+      y += dynamicRowH
     })
 
     y += 5
@@ -327,5 +330,6 @@ export function exportReceiptPDF(payment: Payment, rental: Rental | null, settin
   pdf.text('This receipt serves as proof of payment.', margin, pageHeight - 10)
   pdf.text(`Generated ${new Date().toLocaleDateString('en-MY')}`, rightMargin, pageHeight - 10, { align: 'right' })
 
+  if (output === 'datauristring') return pdf.output('datauristring')
   pdf.save(`${payment.receipt_number}_Receipt.pdf`)
 }

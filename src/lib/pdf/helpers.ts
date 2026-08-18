@@ -123,26 +123,35 @@ export function drawTable(
   pdf.setFontSize(8)
 
   rows.forEach((row, rowIndex) => {
-    y = checkPageBreak(pdf, y, 20, rowHeight)
+    // Calculate dynamic row height based on first column wrap
+    const firstColLines = pdf.splitTextToSize(row[0] || '', columnWidths[0] - 6)
+    const lineH = 4.5
+    const dynamicRowH = Math.max(rowHeight, firstColLines.length * lineH + 3)
+
+    y = checkPageBreak(pdf, y, 20, dynamicRowH)
 
     // Alternating row background
     if (rowIndex % 2 === 1) {
       pdf.setFillColor(248, 250, 252) // slate-50
-      pdf.rect(margin, y - 4, tableWidth, rowHeight, 'F')
+      pdf.rect(margin, y - 4, tableWidth, dynamicRowH, 'F')
     }
 
     // Row border
     pdf.setDrawColor(241, 245, 249)
-    pdf.line(margin, y + rowHeight - 5, margin + tableWidth, y + rowHeight - 5)
+    pdf.line(margin, y + dynamicRowH - 5, margin + tableWidth, y + dynamicRowH - 5)
 
     xPos = margin + 3
     row.forEach((cell, i) => {
-      const cellText = pdf.splitTextToSize(cell, columnWidths[i] - 6)
-      pdf.text(cellText[0] || '', xPos, y)
+      if (i === 0) {
+        pdf.text(firstColLines, xPos, y)
+      } else {
+        const cellText = pdf.splitTextToSize(cell, columnWidths[i] - 6)
+        pdf.text(cellText[0] || '', xPos, y)
+      }
       xPos += columnWidths[i]
     })
 
-    y += rowHeight
+    y += dynamicRowH
   })
 
   return y + 3

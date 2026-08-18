@@ -9,7 +9,7 @@ const DEFAULT_BUSINESS = {
   address: 'F-20-08, F, Pangsapuri Idaman Abadi Fasa 2, 43500, Semenyih, Selangor',
 }
 
-export function exportInvoicePDF(invoice: Invoice, rental: Rental | null, settings: BusinessSettings | null) {
+export function exportInvoicePDF(invoice: Invoice, rental: Rental | null, settings: BusinessSettings | null, output: 'download' | 'datauristring' = 'download'): string | void {
   const pdf = new jsPDF('p', 'mm', 'a4')
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
@@ -150,7 +150,7 @@ export function exportInvoicePDF(invoice: Invoice, rental: Rental | null, settin
   // ─── ITEMS TABLE ─────────────────────────────────────────────────────────
   y = checkPageBreak(pdf, y, margin, 30)
 
-  const colWidths = [92, 18, 32, 28]
+  const colWidths = [74, 16, 16, 32, 32]
   const tableWidth = colWidths.reduce((a, b) => a + b, 0)
   const rowH = 7
 
@@ -162,7 +162,7 @@ export function exportInvoicePDF(invoice: Invoice, rental: Rental | null, settin
   pdf.setFont('helvetica', 'bold')
   pdf.setTextColor(255, 255, 255)
 
-  const tableHeaders = ['DESCRIPTION', 'QTY', 'PRICE (RM)', 'TOTAL (RM)']
+  const tableHeaders = ['DESCRIPTION', 'QTY', 'DAYS', 'PRICE (RM)', 'TOTAL (RM)']
   let xPos = margin + 3
   tableHeaders.forEach((h, i) => {
     if (i === 0) {
@@ -180,34 +180,36 @@ export function exportInvoicePDF(invoice: Invoice, rental: Rental | null, settin
   pdf.setFontSize(9)
 
   invoice.items.forEach((item, idx) => {
-    y = checkPageBreak(pdf, y, margin, rowH)
+    const descLines = pdf.splitTextToSize(item.equipment_name, colWidths[0] - 6)
+    const lineH = 4.5
+    const dynamicRowH = Math.max(rowH, descLines.length * lineH + 3)
+
+    y = checkPageBreak(pdf, y, margin, dynamicRowH)
 
     if (idx % 2 === 1) {
       pdf.setFillColor(248, 248, 248)
-      pdf.rect(margin, y - 4.5, tableWidth, rowH, 'F')
+      pdf.rect(margin, y - 4.5, tableWidth, dynamicRowH, 'F')
     }
 
     pdf.setDrawColor(230, 230, 230)
-    pdf.line(margin, y + rowH - 5, margin + tableWidth, y + rowH - 5)
+    pdf.line(margin, y + dynamicRowH - 5, margin + tableWidth, y + dynamicRowH - 5)
 
     xPos = margin + 3
-    const cells = [
-      item.equipment_name,
+    pdf.text(descLines, xPos, y)
+    xPos += colWidths[0]
+
+    const numericCells = [
       item.quantity.toString(),
+      item.days.toString(),
       item.daily_rate.toFixed(2),
       item.subtotal.toFixed(2),
     ]
-    cells.forEach((cell, i) => {
-      if (i === 0) {
-        const wrapped = pdf.splitTextToSize(cell, colWidths[i] - 6)
-        pdf.text(wrapped[0] || '', xPos, y)
-      } else {
-        pdf.text(cell, xPos + colWidths[i] - 3, y, { align: 'right' })
-      }
-      xPos += colWidths[i]
+    numericCells.forEach((cell, i) => {
+      pdf.text(cell, xPos + colWidths[i + 1] - 3, y, { align: 'right' })
+      xPos += colWidths[i + 1]
     })
 
-    y += rowH
+    y += dynamicRowH
   })
 
   y += 6
@@ -373,5 +375,6 @@ export function exportInvoicePDF(invoice: Invoice, rental: Rental | null, settin
   pdf.text(bizEmail || bizName, margin, pageHeight - 10)
   pdf.text(`Generated ${new Date().toLocaleDateString('en-MY')}`, rightMargin, pageHeight - 10, { align: 'right' })
 
+  if (output === 'datauristring') return pdf.output('datauristring')
   pdf.save(`${invoice.invoice_number}_Invoice.pdf`)
 }

@@ -12,6 +12,7 @@ import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, PAYMENT_METHODS } from '@
 import { formatCurrency, formatDate, formatDateTime, generateDocNumber } from '@/lib/utils'
 import { exportInvoicePDF } from '@/lib/pdf/invoice'
 import { exportReceiptPDF } from '@/lib/pdf/receipt'
+import PDFViewerModal from '@/components/PDFViewerModal'
 
 type StatusFilter = 'all' | Invoice['status']
 
@@ -47,6 +48,7 @@ export default function InvoicesPage() {
   const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null)
   const [payments, setPayments] = useState<Record<string, Payment[]>>({})
   const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>({})
+  const [viewingPDF, setViewingPDF] = useState<{ dataUrl: string; title: string; fileName: string } | null>(null)
 
   useEffect(() => {
     getDoc(doc(db, 'business_settings', 'config')).then((snap) => {
@@ -263,6 +265,33 @@ export default function InvoicesPage() {
     exportReceiptPDF(payment, rental, settings)
   }
 
+  const handleViewPDF = async (invoice: Invoice) => {
+    setPdfLoadingId(invoice.id)
+    try {
+      let rental: Rental | null = null
+      if (invoice.rental_id) {
+        const rentalSnap = await getDoc(doc(db, 'rentals', invoice.rental_id))
+        if (rentalSnap.exists()) rental = { id: rentalSnap.id, ...rentalSnap.data() } as Rental
+      }
+      const dataUrl = exportInvoicePDF(invoice, rental, settings, 'datauristring') as string
+      setViewingPDF({ dataUrl, title: `Invoice ${invoice.invoice_number}`, fileName: `${invoice.invoice_number}.pdf` })
+    } catch (err) {
+      console.error('Error viewing invoice PDF:', err)
+    } finally {
+      setPdfLoadingId(null)
+    }
+  }
+
+  const handleViewReceipt = async (payment: Payment) => {
+    let rental: Rental | null = null
+    if (payment.rental_id) {
+      const rentalSnap = await getDoc(doc(db, 'rentals', payment.rental_id))
+      if (rentalSnap.exists()) rental = { id: rentalSnap.id, ...rentalSnap.data() } as Rental
+    }
+    const dataUrl = exportReceiptPDF(payment, rental, settings, 'datauristring') as string
+    setViewingPDF({ dataUrl, title: `Receipt ${payment.receipt_number}`, fileName: `${payment.receipt_number}.pdf` })
+  }
+
   const getItemsSummary = (items: Invoice['items']) => {
     if (items.length === 0) return 'No items'
     const first = items.slice(0, 2).map(i => i.equipment_name).join(', ')
@@ -403,6 +432,19 @@ export default function InvoicesPage() {
 
                   {/* Actions row */}
                   <div className="flex items-center gap-2 pt-1 border-t border-slate-50">
+                    {/* View PDF */}
+                    <button
+                      onClick={() => handleViewPDF(invoice)}
+                      disabled={pdfLoadingId === invoice.id}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {pdfLoadingId === invoice.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Eye className="w-3.5 h-3.5" />
+                      )}
+                      View
+                    </button>
                     {/* Download PDF */}
                     <button
                       onClick={() => handleDownloadPDF(invoice)}
@@ -492,6 +534,12 @@ export default function InvoicesPage() {
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-sm font-bold text-emerald-600">{formatCurrency(p.amount)}</span>
+                            <button
+                              onClick={() => handleViewReceipt(p)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                            >
+                              <Eye className="w-3 h-3" /> View
+                            </button>
                             <button
                               onClick={() => handleDownloadReceipt(p)}
                               className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
@@ -645,6 +693,13 @@ export default function InvoicesPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {viewingPDF && (
+        <PDFViewerModal
+          {...viewingPDF}
+          onClose={() => setViewingPDF(null)}
+        />
       )}
     </div>
   )

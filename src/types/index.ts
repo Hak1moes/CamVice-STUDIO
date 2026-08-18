@@ -8,6 +8,8 @@ export interface User {
   ic_number: string
   address: string
   role: 'admin' | 'staff' | 'customer'
+  account_type?: 'personal' | 'company'
+  company_name?: string
   avatar_url?: string
   created_at: string
 }

@@ -3,7 +3,7 @@ import type { Rental, BusinessSettings } from '@/types'
 import { drawHeader, drawDocumentTitle, drawInfoRow, drawSectionTitle, drawTable, drawTotalRow, drawDivider, drawFooter, pdfFormatCurrency, checkPageBreak } from './helpers'
 import { formatDate } from '@/lib/utils'
 
-export function exportReturnChecklistPDF(rental: Rental, settings: BusinessSettings | null) {
+export function exportReturnChecklistPDF(rental: Rental, settings: BusinessSettings | null, output: 'download' | 'datauristring' = 'download'): string | void {
   const pdf = new jsPDF('p', 'mm', 'a4')
   const margin = 20
   const pageWidth = pdf.internal.pageSize.getWidth()
@@ -159,5 +159,6 @@ export function exportReturnChecklistPDF(rental: Rental, settings: BusinessSetti
   pdf.text(`Date: _______________`, custX, y + 4)
 
   drawFooter(pdf, settings)
+  if (output === 'datauristring') return pdf.output('datauristring')
   pdf.save(`${rental.rental_number}_Return_Checklist.pdf`)
 }

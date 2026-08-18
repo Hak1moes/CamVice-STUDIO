@@ -4,12 +4,13 @@ import { useState, useEffect, useMemo } from 'react'
 import { db, auth } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore'
-import { Receipt, Loader2, Download, ChevronDown, ChevronUp } from 'lucide-react'
+import { Receipt, Loader2, Download, ChevronDown, ChevronUp, Eye } from 'lucide-react'
 import type { User, Invoice, Payment, Rental, BusinessSettings } from '@/types'
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from '@/lib/constants'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/utils'
 import { exportInvoicePDF } from '@/lib/pdf/invoice'
 import { exportReceiptPDF } from '@/lib/pdf/receipt'
+import PDFViewerModal from '@/components/PDFViewerModal'
 
 export default function PortalInvoicesPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -18,6 +19,7 @@ export default function PortalInvoicesPage() {
   const [settings, setSettings] = useState<BusinessSettings | null>(null)
   const [payments, setPayments] = useState<Record<string, Payment[]>>({})
   const [expandedPayments, setExpandedPayments] = useState<Record<string, boolean>>({})
+  const [viewingPDF, setViewingPDF] = useState<{ dataUrl: string; title: string; fileName: string } | null>(null)
 
   useEffect(() => {
     let unsubs: (() => void)[] = []
@@ -89,6 +91,26 @@ export default function PortalInvoicesPage() {
     exportReceiptPDF(payment, rental, settings)
   }
 
+  const handleViewInvoice = async (invoice: Invoice) => {
+    let rental: Rental | null = null
+    if (invoice.rental_id) {
+      const rentalDoc = await getDoc(doc(db, 'rentals', invoice.rental_id))
+      if (rentalDoc.exists()) rental = { id: rentalDoc.id, ...rentalDoc.data() } as Rental
+    }
+    const dataUrl = exportInvoicePDF(invoice, rental, settings, 'datauristring') as string
+    setViewingPDF({ dataUrl, title: `Invoice ${invoice.invoice_number}`, fileName: `${invoice.invoice_number}.pdf` })
+  }
+
+  const handleViewReceipt = async (payment: Payment) => {
+    let rental: Rental | null = null
+    if (payment.rental_id) {
+      const rentalDoc = await getDoc(doc(db, 'rentals', payment.rental_id))
+      if (rentalDoc.exists()) rental = { id: rentalDoc.id, ...rentalDoc.data() } as Rental
+    }
+    const dataUrl = exportReceiptPDF(payment, rental, settings, 'datauristring') as string
+    setViewingPDF({ dataUrl, title: `Receipt ${payment.receipt_number}`, fileName: `${payment.receipt_number}.pdf` })
+  }
+
   if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><Loader2 className="w-8 h-8 text-neutral-900 animate-spin" /></div>
 
   return (
@@ -131,9 +153,14 @@ export default function PortalInvoicesPage() {
                     )}
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
-                    <button onClick={() => handleDownloadInvoice(inv)} className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 flex items-center gap-1">
-                      <Download className="w-3 h-3" /> Invoice
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleViewInvoice(inv)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+                        <Eye className="w-3 h-3" /> View
+                      </button>
+                      <button onClick={() => handleDownloadInvoice(inv)} className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 flex items-center gap-1">
+                        <Download className="w-3 h-3" /> Invoice
+                      </button>
+                    </div>
                     {(payments[inv.id]?.length ?? 0) > 0 && (
                       <button
                         onClick={() => setExpandedPayments(prev => ({ ...prev, [inv.id]: !prev[inv.id] }))}
@@ -159,6 +186,12 @@ export default function PortalInvoicesPage() {
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-bold text-emerald-600">{formatCurrency(p.amount)}</span>
                         <button
+                          onClick={() => handleViewReceipt(p)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                        >
+                          <Eye className="w-3 h-3" /> View
+                        </button>
+                        <button
                           onClick={() => handleDownloadReceipt(p)}
                           className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-neutral-900 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg"
                         >
@@ -172,6 +205,13 @@ export default function PortalInvoicesPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {viewingPDF && (
+        <PDFViewerModal
+          {...viewingPDF}
+          onClose={() => setViewingPDF(null)}
+        />
       )}
     </div>
   )

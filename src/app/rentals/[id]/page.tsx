@@ -14,6 +14,7 @@ import { exportInvoicePDF } from '@/lib/pdf/invoice'
 import { exportReceiptPDF } from '@/lib/pdf/receipt'
 import { exportAgreementPDF } from '@/lib/pdf/agreement'
 import { exportReturnChecklistPDF } from '@/lib/pdf/return-checklist'
+import PDFViewerModal from '@/components/PDFViewerModal'
 
 // ==================== Status Action Map ====================
 
@@ -119,6 +120,9 @@ export default function RentalDetailPage() {
 
   // Cancel confirm
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+
+  // PDF viewer
+  const [viewingPDF, setViewingPDF] = useState<{ dataUrl: string; title: string; fileName: string } | null>(null)
 
   // Notes editing
   const [editingNotes, setEditingNotes] = useState(false)
@@ -484,6 +488,30 @@ export default function RentalDetailPage() {
   }
   const handleExportReceipt = (payment: Payment) => { if (rental) exportReceiptPDF(payment, rental, settings) }
 
+  const handleViewAgreement = () => {
+    if (!rental) return
+    const dataUrl = exportAgreementPDF(rental, settings, 'datauristring') as string
+    setViewingPDF({ dataUrl, title: `Agreement ${rental.rental_number}`, fileName: `${rental.rental_number}-agreement.pdf` })
+  }
+  const handleViewReturnChecklist = () => {
+    if (!rental) return
+    const dataUrl = exportReturnChecklistPDF(rental, settings, 'datauristring') as string
+    setViewingPDF({ dataUrl, title: `Return Checklist ${rental.rental_number}`, fileName: `${rental.rental_number}-return-checklist.pdf` })
+  }
+  const handleViewInvoice = async () => {
+    if (!rental?.invoice_id) return
+    const invDoc = await getDoc(doc(db, 'invoices', rental.invoice_id))
+    if (invDoc.exists()) {
+      const dataUrl = exportInvoicePDF({ id: invDoc.id, ...invDoc.data() } as Invoice, rental, settings, 'datauristring') as string
+      setViewingPDF({ dataUrl, title: `Invoice`, fileName: `invoice.pdf` })
+    }
+  }
+  const handleViewReceipt = (payment: Payment) => {
+    if (!rental) return
+    const dataUrl = exportReceiptPDF(payment, rental, settings, 'datauristring') as string
+    setViewingPDF({ dataUrl, title: `Receipt ${payment.receipt_number}`, fileName: `${payment.receipt_number}.pdf` })
+  }
+
   // ==================== Loading State ====================
 
   if (loading) {
@@ -553,8 +581,11 @@ export default function RentalDetailPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={handleViewAgreement} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"><Eye className="w-3 h-3" /> View Agreement</button>
             <button onClick={handleExportAgreement} className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 flex items-center gap-1"><Download className="w-3 h-3" /> Agreement</button>
+            {rental.invoice_id && <button onClick={handleViewInvoice} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"><Eye className="w-3 h-3" /> View Invoice</button>}
             {rental.invoice_id && <button onClick={handleExportInvoice} className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 flex items-center gap-1"><Download className="w-3 h-3" /> Invoice</button>}
+            {['returned', 'inspected', 'completed'].includes(rental.status) && <button onClick={handleViewReturnChecklist} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"><Eye className="w-3 h-3" /> View Checklist</button>}
             {['returned', 'inspected', 'completed'].includes(rental.status) && <button onClick={handleExportReturnChecklist} className="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 flex items-center gap-1"><Download className="w-3 h-3" /> Return Checklist</button>}
           </div>
         </div>
@@ -1009,7 +1040,10 @@ export default function RentalDetailPage() {
                       {formatDateTime(payment.created_at)}
                     </td>
                     <td className="py-3 px-4">
-                      <button onClick={() => handleExportReceipt(payment)} className="text-xs text-neutral-900 hover:underline flex items-center gap-1"><Download className="w-3 h-3" /> PDF</button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => handleViewReceipt(payment)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"><Eye className="w-3 h-3" /> View</button>
+                        <button onClick={() => handleExportReceipt(payment)} className="text-xs text-neutral-900 hover:underline flex items-center gap-1"><Download className="w-3 h-3" /> PDF</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1394,6 +1428,13 @@ export default function RentalDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {viewingPDF && (
+        <PDFViewerModal
+          {...viewingPDF}
+          onClose={() => setViewingPDF(null)}
+        />
       )}
     </div>
   )
