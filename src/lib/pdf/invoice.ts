@@ -126,7 +126,8 @@ export function exportInvoicePDF(invoice: Invoice, rental: Rental | null, settin
   if (invoice.customer_email) { pdf.text(invoice.customer_email, margin, y); y += 4 }
   if (rental?.customer_phone) { pdf.text(rental.customer_phone, margin, y); y += 4 }
 
-  if (rental && invoice.rental_number) {
+  const rentalRef = rental?.rental_number || invoice.rental_number
+  if (rentalRef) {
     pdf.setFontSize(7.5)
     pdf.setFont('helvetica', 'bold')
     pdf.setTextColor(120, 120, 120)
@@ -135,7 +136,7 @@ export function exportInvoicePDF(invoice: Invoice, rental: Rental | null, settin
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(9)
     pdf.setTextColor(60, 60, 60)
-    pdf.text(invoice.rental_number, midX, refY + 9)
+    pdf.text(rentalRef, midX, refY + 9)
   }
 
   pdf.setTextColor(0, 0, 0)
